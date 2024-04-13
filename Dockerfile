@@ -12,9 +12,10 @@ LABEL Name="brain/sz_simple_redoer" \
       Maintainer="brianmacy@gmail.com" \
       Version="DEV"
 
+# && python3 -mpip install orjson \
 RUN apt-get update \
  && apt-get -y install curl python3 python3-pip \
- && python3 -mpip install orjson \
+ && python3 -mpip install --break-system-packages orjson \
  && apt-get -y remove build-essential python3-pip \
  && apt-get -y autoremove \
  && apt-get -y clean
