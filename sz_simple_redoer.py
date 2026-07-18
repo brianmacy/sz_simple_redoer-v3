@@ -11,13 +11,10 @@ import importlib
 import sys
 import os
 import time
-import random
 
 from senzing import (
     G2Engine,
-    G2Exception,
     ExceptionCode,
-    G2EngineFlags,
     G2BadInputException,
     G2RetryTimeoutExceededException,
 )
@@ -28,6 +25,10 @@ EMPTY_PAUSE_TIME = int(os.getenv("SENZING_REDO_SLEEP_TIME_IN_SECONDS", default=6
 
 TUPLE_MSG = 0
 TUPLE_STARTTIME = 1
+
+PARAMS = "PARAMS"
+PARAM = "PARAM"
+VALUE = "VALUE"
 
 log_format = "%(asctime)s %(message)s"
 
@@ -148,7 +149,7 @@ try:
                             ):  # log transliteration issue specially
                                 print(f"Transliteration failure: {msg[TUPLE_MSG]}")
                             pass
-                        except G2RetryTimeoutExceededException as err:
+                        except G2RetryTimeoutExceededException:
                             print("Hit retry timeout")
 
                         messages += 1
