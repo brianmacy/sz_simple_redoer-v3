@@ -1,27 +1,24 @@
 #! /usr/bin/env python3
 
-import concurrent.futures
-
 import argparse
-import orjson
-import logging
-import traceback
-
+import concurrent.futures
 import importlib
-import sys
+import logging
 import os
+import sys
 import time
 
+import orjson
 from senzing import (
-    G2Engine,
     ExceptionCode,
     G2BadInputException,
+    G2Engine,
     G2RetryTimeoutExceededException,
 )
 
 INTERVAL = 1000
-LONG_RECORD = os.getenv("LONG_RECORD", default=300)
-EMPTY_PAUSE_TIME = int(os.getenv("SENZING_REDO_SLEEP_TIME_IN_SECONDS", default=60))
+LONG_RECORD = int(os.getenv("LONG_RECORD", default="300"))
+EMPTY_PAUSE_TIME = int(os.getenv("SENZING_REDO_SLEEP_TIME_IN_SECONDS", default="60"))
 
 TUPLE_MSG = 0
 TUPLE_STARTTIME = 1
@@ -31,6 +28,7 @@ PARAM = "PARAM"
 VALUE = "VALUE"
 
 log_format = "%(asctime)s %(message)s"
+logger = logging.getLogger("sz_simple_redoer")
 
 def loggingID(rec):
     dsrc = rec.get("DATA_SOURCE")
@@ -100,7 +98,7 @@ try:
             "Please see https://senzing.zendesk.com/hc/en-us/articles/360038774134-G2Module-Configuration-and-the-Senzing-API",
             file=sys.stderr,
         )
-        exit(-1)
+        sys.exit(-1)
 
     # Initialize the G2Engine
     g2 = G2Engine()
@@ -110,7 +108,7 @@ try:
     senzing_governor = importlib.import_module("senzing_governor")
     governor = senzing_governor.Governor(hint="sz_simple_redoer")
 
-    max_workers = int(os.getenv("SENZING_THREADS_PER_PROCESS", 0))
+    max_workers = int(os.getenv("SENZING_THREADS_PER_PROCESS", "0"))
 
     if not max_workers:  # reset to null for executors
         max_workers = None
@@ -148,7 +146,6 @@ try:
                                 ExceptionCode(err) == 7426
                             ):  # log transliteration issue specially
                                 print(f"Transliteration failure: {msg[TUPLE_MSG]}")
-                            pass
                         except G2RetryTimeoutExceededException:
                             print("Hit retry timeout")
 
@@ -234,7 +231,7 @@ try:
                 f"{type(err).__name__}: Shutting down due to error: {err}",
                 file=sys.stderr,
             )
-            traceback.print_exc()
+            logger.exception("Redo processing failed")
             nowTime = time.time()
             for fut, msg in futures.items():
                 if not fut.done():
@@ -244,9 +241,8 @@ try:
                         f'Still processing ({duration/60:.1f} min: {loggingID(record)}'
                     )
             executor.shutdown()
-            exit(-1)
+            sys.exit(-1)
 
-except Exception as err:
-    print(err, file=sys.stderr)
-    traceback.print_exc()
-    exit(-1)
+except Exception:
+    logger.exception("Fatal error")
+    sys.exit(-1)
